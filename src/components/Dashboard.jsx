@@ -1,378 +1,3 @@
-// import React, { useState, useEffect, useRef } from 'react';
-// import axios from 'axios';
-// import './Dashboard.css';
-
-// const API_BASE_URL = 'http://localhost:5001'; // Make sure this matches your Flask server port
-
-// const Dashboard = () => {
-//     const [isFeedError, setIsFeedError] = useState(false);
-//     const [systemStatus, setSystemStatus] = useState({
-//         model_loaded: false,
-//         firebase_connected: false,
-//         last_detection: 0,
-//         detection_cooldown: 0,
-//         auto_clear_delay: 0,
-//         auto_clear_timer: { active: false, remaining_seconds: 0 }
-//     });
-//     const [detectionHistory, setDetectionHistory] = useState([]);
-//     const [lastError, setLastError] = useState('');
-//     const [connectionStatus, setConnectionStatus] = useState('connecting');
-//     const [manualClearStatus, setManualClearStatus] = useState('');
-//     const [debugInfo, setDebugInfo] = useState('');
-
-//     const videoFeedUrl = `${API_BASE_URL}/video_feed`;
-//     const videoRef = useRef(null);
-
-//     useEffect(() => {
-//         // Add debug info
-//         setDebugInfo(`Connecting to: ${API_BASE_URL} from: ${window.location.origin}`);
-
-//         // Function to fetch system status
-//         const fetchStatus = () => {
-//             axios.get(`${API_BASE_URL}/status`, {
-//                 timeout: 5000,
-//                 headers: {
-//                     'Content-Type': 'application/json'
-//                 }
-//             })
-//                 .then(response => {
-//                     setSystemStatus(response.data);
-//                     setConnectionStatus('connected');
-//                     setIsFeedError(false);
-//                     setLastError('');
-
-//                     // Add to detection history if there's a recent detection
-//                     if (response.data.last_detection && response.data.last_detection > 0) {
-//                         const detectionTime = new Date(response.data.last_detection * 1000);
-//                         const newEntry = {
-//                             type: response.data.auto_clear_timer.active ? 'Dust Detected' : 'System Clear',
-//                             timestamp: detectionTime.toLocaleString(),
-//                             status: response.data.auto_clear_timer.active ? 'active' : 'cleared'
-//                         };
-
-//                         setDetectionHistory(prev => {
-//                             const exists = prev.find(item =>
-//                                 Math.abs(new Date(item.timestamp).getTime() - detectionTime.getTime()) < 5000
-//                             );
-//                             if (!exists) {
-//                                 return [newEntry, ...prev.slice(0, 9)]; // Keep last 10 entries
-//                             }
-//                             return prev;
-//                         });
-//                     }
-//                 })
-//                 .catch(error => {
-//                     console.error("Status API error:", error);
-//                     setConnectionStatus('disconnected');
-
-//                     let errorMessage = 'Connection failed';
-//                     if (error.code === 'ERR_NETWORK') {
-//                         errorMessage = 'Network error - Is Flask server running on port 5000?';
-//                     } else if (error.message.includes('CORS')) {
-//                         errorMessage = 'CORS error - Check Flask server CORS configuration';
-//                     } else if (error.response) {
-//                         errorMessage = `Server error: ${error.response.status}`;
-//                     }
-
-//                     setLastError(errorMessage);
-//                     setIsFeedError(true);
-//                 });
-//         };
-
-//         // Function to test API connectivity
-//         const testAPI = () => {
-//             axios.get(`${API_BASE_URL}/test`)
-//                 .then(response => {
-//                     console.log('API Test successful:', response.data);
-//                 })
-//                 .catch(error => {
-//                     console.error('API Test failed:', error);
-//                 });
-//         };
-
-//         // Initial calls
-//         testAPI();
-//         fetchStatus();
-
-//         // Set up periodic status updates
-//         const statusInterval = setInterval(fetchStatus, 1000); // Update every second for timer
-
-//         return () => clearInterval(statusInterval);
-//     }, []);
-
-//     const handleManualClear = () => {
-//         setManualClearStatus('Clearing detection...');
-//         // Since there's no manual clear endpoint, we'll just show status
-//         setTimeout(() => {
-//             setManualClearStatus('System will auto-clear when no dust is detected');
-//         }, 1000);
-//         setTimeout(() => setManualClearStatus(''), 3000);
-//     };
-
-//     const formatTimestamp = (timestamp) => {
-//         if (!timestamp) return 'Never';
-//         return new Date(timestamp * 1000).toLocaleString();
-//     };
-
-//     const getConnectionStatusIcon = () => {
-//         switch (connectionStatus) {
-//             case 'connected':
-//                 return '🟢';
-//             case 'disconnected':
-//                 return '🔴';
-//             default:
-//                 return '🟡';
-//         }
-//     };
-
-//     return (
-//         <div className="dashboard-container">
-//             <div className="dashboard-header">
-//                 <h1>🌞 Solar Panel Dust Detection System</h1>
-//             </div>
-
-//             <div className="main-content">
-//                 <div className="video-section">
-//                     <div className="video-feed-container">
-//                         {isFeedError ? (
-//                             <div className="error-overlay">
-//                                 <p>📷 Camera Feed Unavailable</p>
-//                                 <span>Could not connect to the dust detection camera.</span>
-//                                 <br />
-//                                 <small style={{ color: '#ff6b6b', marginTop: '10px', display: 'block' }}>
-//                                     {getConnectionStatusIcon()} Server: {connectionStatus}
-//                                     {lastError && ` - ${lastError}`}
-//                                 </small>
-//                             </div>
-//                         ) : (
-//                             <img
-//                                 ref={videoRef}
-//                                 src={`${videoFeedUrl}?t=${Date.now()}`}
-//                                 alt="Solar Panel Dust Detection Feed"
-//                                 onError={() => setIsFeedError(true)}
-//                                 onLoad={() => setIsFeedError(false)}
-//                             />
-//                         )}
-//                     </div>
-//                 </div>
-
-//                 <div className="side-panel">
-//                     {/* System Status Panel */}
-//                     <div className="registration-panel card">
-//                         <h2>
-//                             <i className="fas fa-cogs"></i>
-//                             System Status
-//                         </h2>
-//                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-//                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-//                                 <span style={{ color: 'var(--text-secondary)' }}>
-//                                     <i className="fas fa-robot"></i> AI Model:
-//                                 </span>
-//                                 <span style={{
-//                                     color: systemStatus.model_loaded ? 'var(--authorised-color)' : 'var(--unauthorised-color)',
-//                                     fontWeight: '600'
-//                                 }}>
-//                                     {systemStatus.model_loaded ? 'Loaded ✅' : 'Failed ❌'}
-//                                 </span>
-//                             </div>
-
-//                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-//                                 <span style={{ color: 'var(--text-secondary)' }}>
-//                                     <i className="fas fa-database"></i> Firebase:
-//                                 </span>
-//                                 <span style={{
-//                                     color: systemStatus.firebase_connected ? 'var(--authorised-color)' : 'var(--unauthorised-color)',
-//                                     fontWeight: '600'
-//                                 }}>
-//                                     {systemStatus.firebase_connected ? 'Connected ✅' : 'Disconnected ❌'}
-//                                 </span>
-//                             </div>
-
-//                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-//                                 <span style={{ color: 'var(--text-secondary)' }}>
-//                                     <i className="fas fa-clock"></i> Auto-Clear Timer:
-//                                 </span>
-//                                 <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>
-//                                     {systemStatus.auto_clear_delay}s
-//                                 </span>
-//                             </div>
-
-//                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-//                                 <span style={{ color: 'var(--text-secondary)' }}>
-//                                     {getConnectionStatusIcon()} Connection:
-//                                 </span>
-//                                 <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>
-//                                     {connectionStatus}
-//                                 </span>
-//                             </div>
-//                         </div>
-
-//                         {/* Manual Clear Button */}
-//                         <button
-//                             className="registration-button"
-//                             onClick={handleManualClear}
-//                             style={{ marginTop: '15px' }}
-//                         >
-//                             <i className="fas fa-broom"></i> System Info
-//                         </button>
-//                         {manualClearStatus && (
-//                             <p className="registration-status">{manualClearStatus}</p>
-//                         )}
-
-//                         {/* Debug Info */}
-//                         {debugInfo && (
-//                             <div style={{
-//                                 marginTop: '10px',
-//                                 padding: '8px',
-//                                 background: 'var(--bg-secondary)',
-//                                 borderRadius: '4px',
-//                                 fontSize: '0.75rem',
-//                                 color: 'var(--text-muted)'
-//                             }}>
-//                                 {debugInfo}
-//                             </div>
-//                         )}
-//                     </div>
-
-//                     {/* Active Detection Status */}
-//                     <div className="history-panel card">
-//                         <h3>
-//                             <i className="fas fa-eye" style={{ color: systemStatus.auto_clear_timer.active ? '#f39c12' : 'var(--authorised-color)' }}></i>
-//                             Detection Status
-//                         </h3>
-
-//                         {systemStatus.auto_clear_timer.active ? (
-//                             <div style={{
-//                                 background: 'rgba(243, 156, 18, 0.1)',
-//                                 border: '1px solid rgba(243, 156, 18, 0.3)',
-//                                 borderRadius: '8px',
-//                                 padding: '15px',
-//                                 textAlign: 'center'
-//                             }}>
-//                                 <div style={{
-//                                     fontSize: '1.2rem',
-//                                     fontWeight: '700',
-//                                     color: '#f39c12',
-//                                     marginBottom: '10px'
-//                                 }}>
-//                                     ⏰ {Math.ceil(systemStatus.auto_clear_timer.remaining_seconds)}s
-//                                 </div>
-
-//                                 <div style={{
-//                                     width: '100%',
-//                                     height: '8px',
-//                                     background: 'var(--bg-secondary)',
-//                                     borderRadius: '4px',
-//                                     overflow: 'hidden',
-//                                     marginBottom: '8px'
-//                                 }}>
-//                                     <div style={{
-//                                         height: '100%',
-//                                         background: 'linear-gradient(90deg, #f39c12, #e67e22)',
-//                                         width: `${(systemStatus.auto_clear_timer.remaining_seconds / systemStatus.auto_clear_delay) * 100}%`,
-//                                         transition: 'width 1s linear',
-//                                         borderRadius: '4px'
-//                                     }}></div>
-//                                 </div>
-
-//                                 <small style={{ color: '#f39c12', fontStyle: 'italic' }}>
-//                                     🚨 Dust detected! Auto-clearing Firebase...
-//                                 </small>
-//                             </div>
-//                         ) : (
-//                             <div style={{
-//                                 textAlign: 'center',
-//                                 padding: '20px',
-//                                 color: 'var(--text-muted)'
-//                             }}>
-//                                 <div style={{ fontSize: '1.1rem', marginBottom: '8px' }}>
-//                                     ✅ System Clear
-//                                 </div>
-//                                 <small>Monitoring for dust detection...</small>
-//                             </div>
-//                         )}
-
-//                         <div style={{
-//                             marginTop: '15px',
-//                             padding: '10px 0',
-//                             borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-//                             fontSize: '0.9rem',
-//                             color: 'var(--text-secondary)'
-//                         }}>
-//                             <strong>Last Detection:</strong><br />
-//                             {formatTimestamp(systemStatus.last_detection)}
-//                         </div>
-//                     </div>
-
-//                     {/* Detection History */}
-//                     <div className="history-panel card">
-//                         <h3>
-//                             <i className="fas fa-history"></i>
-//                             Recent Activity
-//                         </h3>
-//                         <ul className="history-list">
-//                             {detectionHistory.length > 0 ? detectionHistory.slice(0, 5).map((item, index) => (
-//                                 <li key={index} className={`history-item ${item.status === 'active' ? 'unauthorised' : 'authorised'}`}>
-//                                     <span>
-//                                         {item.status === 'active' ? '🔴' : '🟢'} {item.type}
-//                                     </span>
-//                                     <span className="history-time">
-//                                         {new Date(item.timestamp).toLocaleTimeString()}
-//                                     </span>
-//                                 </li>
-//                             )) : (
-//                                 <li style={{
-//                                     textAlign: 'center',
-//                                     padding: '20px',
-//                                     color: 'var(--text-muted)',
-//                                     fontStyle: 'italic'
-//                                 }}>
-//                                     No recent detections
-//                                 </li>
-//                             )}
-//                         </ul>
-//                     </div>
-
-//                     {/* System Information */}
-//                     <div className="history-panel card">
-//                         <h3>
-//                             <i className="fas fa-info-circle"></i>
-//                             System Info
-//                         </h3>
-//                         <div style={{
-//                             display: 'flex',
-//                             flexDirection: 'column',
-//                             gap: '8px',
-//                             fontSize: '0.9rem',
-//                             color: 'var(--text-secondary)'
-//                         }}>
-//                             <div><strong style={{ color: 'var(--text-primary)' }}>Model:</strong> YOLOv8 (best.pt)</div>
-//                             <div><strong style={{ color: 'var(--text-primary)' }}>Confidence:</strong> 0.5 threshold</div>
-//                             <div><strong style={{ color: 'var(--text-primary)' }}>Camera:</strong> V380 Pro</div>
-//                             <div><strong style={{ color: 'var(--text-primary)' }}>Firebase Path:</strong> /BMS/detection</div>
-//                             <div style={{
-//                                 marginTop: '10px',
-//                                 padding: '10px',
-//                                 background: 'var(--bg-glass)',
-//                                 borderRadius: '6px',
-//                                 fontSize: '0.85rem',
-//                                 fontStyle: 'italic'
-//                             }}>
-//                                 <strong>Logic:</strong> Dust detected → Set to 1 → Auto-clear to 0 after 10s
-//                             </div>
-//                         </div>
-//                     </div>
-//                 </div>
-//             </div>
-//         </div>
-//     );
-// };
-
-// export default Dashboard;
-
-
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { ref, onValue, off } from 'firebase/database';
@@ -418,6 +43,8 @@ const Dashboard = () => {
   const [manualClearStatus, setManualClearStatus] = useState('');
   const [debugInfo, setDebugInfo] = useState('');
   const [firebaseConnected, setFirebaseConnected] = useState(false);
+  const [temperatureAlert, setTemperatureAlert] = useState(null);
+  const [batteryAlert, setBatteryAlert] = useState(null);
   // Relay/pump control removed; we only display pump from BMS
 
   const videoFeedUrl = `${API_BASE_URL}/video_feed`;
@@ -449,6 +76,46 @@ const Dashboard = () => {
         setBms(parsed);
         setFirebaseConnected(true);
         setConnectionStatus('connected');
+
+        // Temperature alert logic
+        const temp = parsed.temp;
+        if (temp > 33) {
+          setTemperatureAlert({
+            type: 'overheat',
+            message: '🚨 OVERHEAT ALERT! Temperature exceeds 33°C',
+            temperature: temp,
+            severity: 'critical'
+          });
+        } else if (temp >= 27) {
+          setTemperatureAlert({
+            type: 'cooling',
+            message: '❄️ Cooling Fan is ON - Temperature ≥27°C',
+            temperature: temp,
+            severity: 'warning'
+          });
+        } else {
+          setTemperatureAlert(null);
+        }
+
+        // Battery alert logic
+        const soc = parsed.soc;
+        if (soc > 99) {
+          setBatteryAlert({
+            type: 'overcharge',
+            message: '⚠️ Over-voltage & Over-current risk — Battery >99%',
+            soc,
+            severity: 'warning'
+          });
+        } else if (soc < 20) {
+          setBatteryAlert({
+            type: 'critical_low',
+            message: '🚨 CRITICAL BATTERY LOW (<20%)',
+            soc,
+            severity: 'critical'
+          });
+        } else {
+          setBatteryAlert(null);
+        }
 
         // Add to historical data (keep last 20 points)
         setHistoricalData(prev => {
@@ -583,6 +250,84 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* Temperature Alert Notification */}
+      {temperatureAlert && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 1000,
+          background: temperatureAlert.severity === 'critical' 
+            ? 'linear-gradient(135deg, #ff4444, #cc0000)' 
+            : 'linear-gradient(135deg, #ff9800, #f57c00)',
+          color: 'white',
+          padding: '15px 20px',
+          borderRadius: '12px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          border: temperatureAlert.severity === 'critical' 
+            ? '2px solid #ff0000' 
+            : '2px solid #ff9800',
+          maxWidth: '320px',
+          animation: temperatureAlert.severity === 'critical' 
+            ? 'pulse 1s infinite' 
+            : 'none'
+        }}>
+          <div style={{ 
+            fontWeight: 'bold', 
+            fontSize: '1.1rem', 
+            marginBottom: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            {temperatureAlert.message}
+          </div>
+          <div style={{ fontSize: '0.9rem', opacity: '0.9' }}>
+            Current Temperature: {temperatureAlert.temperature}°C
+          </div>
+          {temperatureAlert.severity === 'critical' && (
+            <div style={{ 
+              fontSize: '0.85rem', 
+              marginTop: '5px',
+              fontStyle: 'italic',
+              opacity: '0.9'
+            }}>
+              ⚠️ Check system immediately!
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Battery Alert Notification */}
+      {batteryAlert && (
+        <div style={{
+          position: 'fixed',
+          top: '100px',
+          right: '20px',
+          zIndex: 1000,
+          background: batteryAlert.severity === 'critical'
+            ? 'linear-gradient(135deg, #ff4444, #cc0000)'
+            : 'linear-gradient(135deg, #ffb74d, #ff9800)',
+          color: 'white',
+          padding: '12px 18px',
+          borderRadius: '12px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          border: batteryAlert.severity === 'critical' ? '2px solid #ff0000' : '2px solid #ff9800',
+          maxWidth: '360px',
+          animation: batteryAlert.severity === 'critical' ? 'pulse 1s infinite' : 'none'
+        }}>
+          <div style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {batteryAlert.message}
+          </div>
+          <div style={{ fontSize: '0.9rem', opacity: '0.95' }}>
+            Battery: {batteryAlert.soc}%
+          </div>
+          {batteryAlert.severity === 'critical' && (
+            <div style={{ fontSize: '0.85rem', marginTop: '6px', fontStyle: 'italic' }}>🚨 Immediate action recommended</div>
+          )}
+        </div>
+      )}
+
       <div className="main-content">
         {/* Video Section */}
         <div className="video-section">
@@ -712,14 +457,39 @@ const Dashboard = () => {
               )}
             </div>
             <div className="metric-card card" style={{
-              background: 'linear-gradient(135deg, #FF9800, #FF9800aa)',
+              background: temperatureAlert?.severity === 'critical' 
+                ? 'linear-gradient(135deg, #ff4444, #cc0000)' 
+                : temperatureAlert?.severity === 'warning'
+                ? 'linear-gradient(135deg, #ff9800, #f57c00)'
+                : 'linear-gradient(135deg, #4CAF50, #45a049)',
               color: 'white',
               textAlign: 'center',
               padding: '20px',
-              position: 'relative'
+              position: 'relative',
+              border: temperatureAlert?.severity === 'critical' ? '2px solid #ff0000' : 'none',
+              animation: temperatureAlert?.severity === 'critical' ? 'pulse 2s infinite' : 'none'
             }}>
-              <h3>🌡️ Temperature</h3>
+              <h3>
+                🌡️ Temperature 
+                {temperatureAlert?.severity === 'critical' && ' 🚨'}
+                {temperatureAlert?.severity === 'warning' && ' ❄️'}
+              </h3>
               <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{bms.temp}°C</div>
+              {temperatureAlert && (
+                <div style={{ 
+                  position: 'absolute', 
+                  bottom: '5px', 
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  fontSize: '10px',
+                  background: 'rgba(0,0,0,0.4)',
+                  padding: '2px 6px',
+                  borderRadius: '8px',
+                  fontWeight: 'bold'
+                }}>
+                  {temperatureAlert.severity === 'critical' ? 'OVERHEAT!' : 'FAN ON'}
+                </div>
+              )}
               {firebaseConnected && (
                 <div style={{ position: 'absolute', top: '5px', right: '5px', fontSize: '12px', background: 'rgba(255,255,255,0.3)', padding: '2px 6px', borderRadius: '10px' }}>🔴 LIVE</div>
               )}
@@ -760,6 +530,36 @@ const Dashboard = () => {
               <span style={{color: 'var(--text-secondary)'}}>Detected:</span>
               <span style={{fontWeight: 700, color: bms.detected ? '#f39c12' : 'var(--authorised-color)'}}>
                 {bms.detected ? 'Dust Detected' : 'Clear'}
+              </span>
+            </div>
+            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+              <span style={{color: 'var(--text-secondary)'}}>Temperature Status:</span>
+              <span style={{
+                fontWeight: 700, 
+                color: temperatureAlert?.severity === 'critical' 
+                  ? '#ff4444' 
+                  : temperatureAlert?.severity === 'warning' 
+                  ? '#ff9800' 
+                  : 'var(--authorised-color)'
+              }}>
+                {temperatureAlert?.severity === 'critical' 
+                  ? '🚨 OVERHEAT' 
+                  : temperatureAlert?.severity === 'warning' 
+                  ? '❄️ COOLING' 
+                  : '✅ NORMAL'}
+              </span>
+            </div>
+            <div style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+              <span style={{color: 'var(--text-secondary)'}}>Battery:</span>
+              <span style={{
+                fontWeight: 700,
+                color: batteryAlert?.severity === 'critical'
+                  ? '#ff4444'
+                  : batteryAlert?.severity === 'warning'
+                  ? '#ff9800'
+                  : getBatteryColor(bms.soc)
+              }}>
+                {bms.soc}% {batteryAlert ? ` - ${batteryAlert.message}` : ''}
               </span>
             </div>
           </div>
